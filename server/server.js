@@ -1,4 +1,3 @@
-
 import express from 'express';
 import axios from 'axios';
 import cors from 'cors';
@@ -9,10 +8,15 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+// ✅ Fixed: Use Render's PORT or fallback to 8080 (not 3000)
+const PORT = process.env.PORT || 8080;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: '*', // Allow all origins for browser extension
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type']
+}));
 app.use(express.json());
 
 // Environment Variables
@@ -28,9 +32,22 @@ if (!GEMINI_API_KEY || !YOUTUBE_API_KEY) {
     process.exit(1);
 }
 
-// ✅ GET route for browser check
+// ✅ GET route for browser check - Fixed response
 app.get('/', (req, res) => {
-    res.send('✅ Server is running. Use POST /analyze');
+    res.json({
+        status: 'success',
+        message: '✅ LeetCode Helper Backend is running',
+        endpoints: {
+            analyze: 'POST /analyze',
+            health: 'GET /'
+        },
+        timestamp: new Date().toISOString()
+    });
+});
+
+// ✅ Add health check endpoint
+app.get('/health', (req, res) => {
+    res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
 // 🔍 Get LeetCode Problem Info
@@ -176,8 +193,6 @@ async function searchYouTubeVideos(query) {
   }
 }
 
-
-
 // 🧠 Main POST route
 app.post('/analyze', async (req, res) => {
     const { slug } = req.body;
@@ -220,7 +235,8 @@ app.post('/analyze', async (req, res) => {
             slug: slug,
             algorithms: geminiResult.algorithms,
             hints: geminiResult.hints,
-            youtubeLinks: youtubeLinks
+            youtubeLinks: youtubeLinks,
+            timestamp: new Date().toISOString() // Add timestamp for cache management
         };
 
         console.log(`✅ Analysis complete for: ${problemInfo.title}`);
@@ -230,7 +246,8 @@ app.post('/analyze', async (req, res) => {
         console.error("❌ Error in /analyze:", err.message);
         res.status(500).json({ 
             error: err.message,
-            slug: slug
+            slug: slug,
+            timestamp: new Date().toISOString()
         });
     }
 });
@@ -238,11 +255,24 @@ app.post('/analyze', async (req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error('❌ Unhandled error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+        error: 'Internal server error',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// 404 handler for undefined routes
+app.use('*', (req, res) => {
+    res.status(404).json({
+        error: 'Route not found',
+        availableRoutes: ['GET /', 'POST /analyze', 'GET /health'],
+        requestedRoute: req.originalUrl
+    });
 });
 
 // 🚀 Start Server
 app.listen(PORT, () => {
-    console.log(`🚀 Server is running on http://localhost:${PORT}`);
-    console.log(`📝 Test with: curl -X POST http://localhost:${PORT}/analyze -H "Content-Type: application/json" -d '{"slug":"two-sum"}'`);
+    console.log(`🚀 Server is running on port ${PORT}`);
+    console.log(`🌐 Render URL: https://leetcode-helper-backend-5xtj.onrender.com`);
+    console.log(`📝 Test with: curl -X POST https://leetcode-helper-backend-5xtj.onrender.com/analyze -H "Content-Type: application/json" -d '{"slug":"two-sum"}'`);
 });
