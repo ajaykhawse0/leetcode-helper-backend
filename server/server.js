@@ -83,7 +83,7 @@ async function getLeetCodeProblemInfo(slug) {
 // 🤖 Gemini Analysis with improved prompt
 async function getGeminiAnalysis(title, problemId, difficulty) {
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+   const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
     const prompt = `For the LeetCode problem titled: "${title}" (ID: ${problemId}, Difficulty: ${difficulty}):
 
